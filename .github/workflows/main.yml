@@ -1,4 +1,4 @@
-name: Build NutriSport APK
+name: Build TablasPro / NutriSport APK
 
 on:
   workflow_dispatch:
@@ -14,22 +14,41 @@ jobs:
       - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: Configurar Java 17
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Configurar Java 21
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
-      - name: Verificar estructura del proyecto
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Crear proyecto Android (si no existe)
         run: |
-          echo "Contenido del repositorio:"
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Copiar iconos PRO
+        run: |
+          if [ -d "android-icon" ]; then
+            echo "Copiando iconos..."
+            cp -r android-icon/* android/app/src/main/res/
+          fi
+          ls -la android/app/src/main/res/mipmap-xxxhdpi/
+
+      - name: Verificar estructura
+        run: |
           ls -la
-          echo ""
-          echo "Contenido de android:"
-          ls -la android
-          echo ""
-          echo "Gradle wrapper:"
-          ls -la android/gradlew
+          ls -la android/
+          ls -la android/app/build.gradle || echo "no build.gradle"
 
       - name: Dar permisos a Gradle
         run: chmod +x android/gradlew
@@ -41,6 +60,6 @@ jobs:
       - name: Guardar APK
         uses: actions/upload-artifact@v4
         with:
-          name: NutriSport-APK
+          name: TablasPro-APK-PRO-ICONS
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
