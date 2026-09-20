@@ -1,0 +1,99 @@
+```yaml
+name: Build NutriSport APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Verificar Capacitor
+        run: npx cap --version
+
+      - name: Crear proyecto Android si no existe
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+
+      - name: Sincronizar aplicación con Android
+        run: npx cap sync android
+
+      - name: Copiar icono de NutriSport
+        run: |
+          if [ -d "android-icon" ]; then
+            echo "Copiando iconos de NutriSport..."
+            cp -r android-icon/* android/app/src/main/res/
+          else
+            echo "No existe la carpeta android-icon."
+            echo "Se conservarán los iconos actuales."
+          fi
+
+      - name: Verificar proyecto Android
+        run: |
+          echo "=== Proyecto ==="
+          ls -la
+
+          echo "=== Android ==="
+          ls -la android/
+
+          echo "=== App ==="
+          ls -la android/app/
+
+          if [ -f "android/gradlew" ]; then
+            echo "Gradle Wrapper encontrado."
+          else
+            echo "ERROR: No se encontró android/gradlew"
+            exit 1
+          fi
+
+      - name: Dar permisos a Gradle
+        run: chmod +x android/gradlew
+
+      - name: Limpiar proyecto Android
+        working-directory: android
+        run: ./gradlew clean
+
+      - name: Construir APK NutriSport
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Verificar APK
+        run: |
+          if [ ! -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "ERROR: No se generó la APK."
+            exit 1
+          fi
+
+          echo "APK NutriSport generada correctamente:"
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Guardar APK NutriSport
+        uses: actions/upload-artifact@v4
+        with:
+          name: NutriSport-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+```
